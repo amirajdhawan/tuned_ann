@@ -287,27 +287,117 @@ void gradient_descent(int max_iter) {
     #endif
 }
 
-void read_data(double* xTr, double* yTr){
-    xTr = (double*) malloc(sizeof(double) * 10250100);
-    yTr = (double*) malloc(sizeof(double) * 1025010);
+void read_data(double** xTr, double** yTr){
+    *xTr = (double*) malloc(sizeof(double) * 10000000);
+    *yTr = (double*) malloc(sizeof(double) * 1000000);
+
+    FILE* fp = fopen("poker-hand-training.data", "r");
+
+    if(fp == NULL){
+        printf("Unable to read the file!");
+        exit(0);
+    }
+
+    char line[256];
+    int xTr_pointer = 0;
+    int yTr_pointer = 0;
+    int counter = 0;
+    char *token;
+    
+    while(fgets(line, sizeof(line), fp)){
+        counter = 0;
+        token = NULL;
+
+        token = strtok(line, ",");
+
+        while(token != NULL){
+
+            counter++;
+            if(counter < 11){
+                (*xTr)[xTr_pointer++] = atof(token);
+            }
+            else
+                (*yTr)[yTr_pointer++] = atof(token);
+            
+            token = strtok(NULL, ",");
+        }
+    }
+
+    fclose(fp);
+    return;
+}
+
+void read_test_data(double** xTe, double** yTe){
+    *xTr = (double*) malloc(sizeof(double) * 250100);
+    *yTr = (double*) malloc(sizeof(double) * 25010);
+
+    FILE* fp = fopen("poker-hand-testing.data", "r");
+
+    if(fp == NULL){
+        printf("Unable to read the file!");
+        exit(0);
+    }
+
+    char line[256];
+    int xTe_pointer = 0;
+    int yTe_pointer = 0;
+    int counter = 0;
+    char *token;
+    
+    while(fgets(line, sizeof(line), fp)){
+        counter = 0;
+        token = NULL;
+
+        token = strtok(line, ",");
+
+        while(token != NULL){
+
+            counter++;
+            if(counter < 11){
+                (*xTe)[xTe_pointer++] = atof(token);
+            }
+            else
+                (*yTe)[yTe_pointer++] = atof(token);
+            
+            token = strtok(NULL, ",");
+        }
+    }
+
+    fclose(fp);
+    return;
 }
 
 int main(int argc, char** argv){
 
-    double* xTr_data = (double*) malloc(sizeof(double) * 11000000);
-    double* yTr_data = (double*) malloc(sizeof(double) * 1100000);
+    double* xTr_data;
+    double* yTr_data;
+    double* xTe_data;
+    double* yTe_data;
+
+    read_data(&xTr_data, &yTr_data);
+    read_test_data(&xTe_data, &yTe_data);
+
+    /*for(int i = 0; i < 20; i++){
+        printf("xtr %d -> %.1f\t", i, xTr_data[i]);
+    }
+    printf("\n\n");
+    for(int i = 0; i < 2; i++){
+        printf("ytr %d -> %.1f\t", i, yTr_data[i]);
+    }
+    printf("\n\n");*/
     
-    for(int i = 0; i < 11000000; i++) {
+    /*for(int i = 0; i < 11000000; i++) {
         xTr_data[i] = i;
     }
     
     for(int i = 0; i < 1100000; i++) {
         yTr_data[i] = i;
     }
-    
+    */
+
     printf("Training the neural network");
     fflush(stdout);
-    
+
     int tid = fork();
 
     if(tid > 0){
@@ -319,7 +409,7 @@ int main(int argc, char** argv){
         }
     }
     else{
-        create_ann(xTr_data,yTr_data,10,100,1,1100000);
+        create_ann(xTr_data,yTr_data,10,100,1,1025010);
 
         double t0 = omp_get_wtime();
         gradient_descent(10);
@@ -327,6 +417,24 @@ int main(int argc, char** argv){
 
         printf("\nDone training!\n");
         printf("Time Taken: %lf\n",t1-t0);
+
+        printf("Now running Testing data");
+        fflush(stdout);
+
+        int nid = fork();
+
+        if(nid > 0){
+            int status = 0;
+            while((waitpid(-1, &status, WNOHANG)) <= 0){
+                printf(".");
+                fflush(stdout);
+                sleep(2);
+            }
+        }
+        else{
+            //Run testing
+            
+        }
     }
     return 0;
 }
