@@ -2,14 +2,15 @@
 #include <stdlib.h>
 #include <math.h>
 #include <stdbool.h>
+#include <omp.h>
 
 #include "utilities.h"
-
-#include<omp.h>
 
 #ifndef BLOCK_SIZE
 #define BLOCK_SIZE ((int) 32)
 #endif
+
+#define DEBUG_PRINT 1
 
 //Striped Parallel Matrix Multiplication
 
@@ -118,6 +119,10 @@ void dgemm(const int M, const int K, const int N, const double * restrict A, con
 
 void dgemm_naive(matrix_t* matrix_a, matrix_t* matrix_b, matrix_t* matrix_c) {
     
+    #ifdef DEBUG_PRINT
+    printf("Entered dgemm naive\n");
+    #endif
+
     for(int i = 0; i < matrix_a->first_dim; i++){
         for(int j = 0; j < matrix_b->second_dim; j++){
             double sum = 0;
@@ -127,9 +132,17 @@ void dgemm_naive(matrix_t* matrix_a, matrix_t* matrix_b, matrix_t* matrix_c) {
             matrix_c->mat_data[MATRIX_ACCESS(i, j, matrix_c->second_dim)] = sum;
         }
     }
+
+    #ifdef DEBUG_PRINT
+    printf("Exiting dgemm naive\n");
+    #endif
 }
 
 matrix_t* mat_mul(matrix_t* matrix_a, matrix_t* matrix_b, int method){
+
+    #ifdef DEBUG_PRINT
+    printf("Mat mul called\n");
+    #endif
 
 	if(matrix_a->second_dim != matrix_b->first_dim){
 		return NULL;
@@ -148,6 +161,10 @@ matrix_t* mat_mul(matrix_t* matrix_a, matrix_t* matrix_b, int method){
     } else {
         dgemm_naive(matrix_a,matrix_b,matrix_c);
     }
+
+    #ifdef DEBUG_PRINT
+    printf("Entered mat mul\n");
+    #endif
 
 	return matrix_c;
 }
@@ -266,7 +283,7 @@ double activation_func(double value){
 }
 
 double der_activation_func(double value){
-    //Using Rectified Linear Units (ReLU)
+    //Derivative of the activation function
     return value >= 0 ? 1 : 0;
 }
 
@@ -308,4 +325,12 @@ bool check_matrix_same(matrix_t* mat_a, matrix_t* mat_b){
 		}
 	}
 	return true;
+}
+
+void mat_free(matrix_t* a){
+    if(a == NULL)
+        return;
+    free(a->mat_data);
+    free(a);
+    return;
 }

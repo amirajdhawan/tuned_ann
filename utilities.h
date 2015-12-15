@@ -45,4 +45,6 @@ bool check_double_eq(double value1, double value2);
 
 bool check_matrix_same(matrix_t* mat_a, matrix_t* mat_b);
 
+void mat_free(matrix_t* a);
+
 #endif
