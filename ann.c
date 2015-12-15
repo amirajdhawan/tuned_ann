@@ -6,6 +6,9 @@
 #include <float.h>
 #include <omp.h>
 #include <limits.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #include "utilities.h"
 
@@ -13,6 +16,7 @@
 #define DEBUG_LEVEL 1
 #define METHOD NAIVE
 #define NUM_THREADS 10
+//#define DEBUG_PRINT 1
 
 matrix_t* xTr;
 matrix_t* xTr_with_bias;
@@ -22,7 +26,7 @@ matrix_t* W_prime;
 matrix_t* W;
 
 matrix_t* alpha_delta_W_prime;
-matrix_t* alpha_delta_W;
+matrix_t* alpha_delta_W = NULL;
 
 matrix_t* a_prime;
 matrix_t* z_prime;
@@ -43,7 +47,7 @@ double compute_loss();
 void back_prop();
 
 void create_ann(double* xTr_data, double* yTr_data, int n_input, int n_hidden, int n_output,int n) {
-    
+
     xTr = make_mat(n_input,n,xTr_data);
     yTr = make_mat(n_output,n,yTr_data);
     
@@ -72,7 +76,11 @@ void create_ann(double* xTr_data, double* yTr_data, int n_input, int n_hidden, i
 }
 
 void feedforward() {
-    
+
+    #ifdef DEBUG_PRINT
+    printf("Entered feedforward\n");
+    #endif
+
     mat_free(xTr_with_bias);
     xTr_with_bias = add_bias(xTr);
     //printf("Printing Matrix xTr_with_bias\n");
@@ -103,6 +111,9 @@ void feedforward() {
     //printf("\nPrinting Matrix z\n");
     //print_matrix(z);
 
+    #ifdef DEBUG_PRINT
+    printf("exiting feedforward\n");
+    #endif
 
 }
 
@@ -119,7 +130,7 @@ matrix_t* add_bias(matrix_t* z) {
 }
 
 double compute_loss() {
-    
+
     matrix_t* loss = (matrix_t*)malloc(sizeof(matrix_t));
     loss->first_dim = yTr->first_dim;
     loss->second_dim = 1;
@@ -131,7 +142,7 @@ double compute_loss() {
         #pragma omp parallel for shared(z,yTr) reduction(+ : loss_temp)
         for(int j = 0; j < yTr->second_dim; j++) {
             loss_temp += pow(z->mat_data[MATRIX_ACCESS(i, j, z->second_dim)]
-                                     - yTr->mat_data[MATRIX_ACCESS(i, j, yTr->second_dim)],2);
+               - yTr->mat_data[MATRIX_ACCESS(i, j, yTr->second_dim)],2);
         }
         loss->mat_data[i] = loss_temp;
         loss->mat_data[i] /= (2 * yTr->second_dim);
@@ -146,7 +157,11 @@ double compute_loss() {
 }
 
 void back_prop() {
-    
+
+    #ifdef DEBUG_PRINT
+    printf("Entered backprop\n");
+    #endif
+
     matrix_t* der_g_a = der_g(a);
     matrix_t* delta = mat_subtract(z,yTr);
     matrix_t* avg_delta = mat_mul_scalar(delta,1.0/yTr->second_dim);
@@ -161,24 +176,25 @@ void back_prop() {
     matrix_t* z_prime_trans = mat_transpose(z_prime_with_bias);
     matrix_t* delta_W = mat_mul(delta_2,z_prime_trans,METHOD);
     mat_free(z_prime_trans);
-    mat_free(z_prime_with_bias);
+    //mat_free(z_prime_with_bias);
 
     //printf("\nPrinting Matrix delta W\n");
     //print_matrix(delta_W);
     
     matrix_t* W_trans = mat_transpose(W);
     //printf("\nPrinting Matrix W_trans\n");
-    //print_matrix(W_trans);
+    //print_matrix(W_primetrans);
     matrix_t* W_trans_delta_2 = mat_mul(W_trans,delta_2,METHOD);
     mat_free(delta_2);
+    //printf("-----after delta 2-------------\n");
     mat_free(W_trans);
-
+    //printf("-----after w_trans-------------\n");
     //printf("\nPrinting Matrix W_trans_delta_2\n");
     //print_matrix(W_trans_delta_2);
     matrix_t* der_f_a_prime = der_f(a_prime);
     matrix_t* der_f_a_prime_with_bias = add_bias(der_f_a_prime);
     mat_free(der_f_a_prime);
-
+    
     //printf("\nPrinting Matrix der_f a_prime\n");
     //print_matrix(der_f_a_prime_with_bias);
     matrix_t* avg_delta_1 = mat_mul_element(der_f_a_prime_with_bias,W_trans_delta_2);
@@ -186,9 +202,10 @@ void back_prop() {
     delta_1->first_dim = delta_1->first_dim-1;
     mat_free(der_f_a_prime_with_bias);
     mat_free(avg_delta_1);
-
+    
     //printf("\nPrinting Matrix delta_1\n");
     //print_matrix(delta_1);
+    
     mat_free(alpha_delta_W);
     alpha_delta_W = mat_mul_scalar(delta_W,alpha);
     matrix_t* new_W = mat_subtract(W, alpha_delta_W);
@@ -216,10 +233,14 @@ void back_prop() {
 
     //printf("\nPrinting Matrix W_prime\n");
     //print_matrix(W_prime);
+
+    #ifdef DEBUG_PRINT
+    printf("exiting backprop\n");
+    #endif
 }
 
 void gradient_descent(int max_iter) {
-        
+
     #ifdef DEBUG_PRINT
     printf("Entered gd\n");
     #endif
@@ -235,7 +256,7 @@ void gradient_descent(int max_iter) {
     }
 
     for(int i = 0; i < max_iter; i++) {
-        
+
         back_prop();
         
         feedforward();
@@ -248,7 +269,7 @@ void gradient_descent(int max_iter) {
             loss = new_loss;
             alpha = 1.01 * alpha;
         } else {
-            
+
             matrix_t* new_W = mat_add(W,alpha_delta_W);
             mat_free(W);
             W = new_W;
@@ -266,9 +287,13 @@ void gradient_descent(int max_iter) {
     #endif
 }
 
+void read_data(double* xTr, double* yTr){
+    xTr = (double*) malloc(sizeof(double) * 10250100);
+    yTr = (double*) malloc(sizeof(double) * 1025010);
+}
+
 int main(int argc, char** argv){
-    int x = sizeof(int);
-    printf("%d\n", x);
+
     double* xTr_data = (double*) malloc(sizeof(double) * 11000000);
     double* yTr_data = (double*) malloc(sizeof(double) * 1100000);
     
@@ -280,13 +305,28 @@ int main(int argc, char** argv){
         yTr_data[i] = i;
     }
     
-    create_ann(xTr_data,yTr_data,10,100,1,1100000);
+    printf("Training the neural network");
+    fflush(stdout);
     
-    double t0 = omp_get_wtime();
-    gradient_descent(10);
-    double t1 = omp_get_wtime();
-    
-    printf("\nTime Taken: %lf\n",t1-t0);
-    
-	return 0;
+    int tid = fork();
+
+    if(tid > 0){
+        int status = 0;
+        while((waitpid(-1, &status, WNOHANG)) <= 0){
+            printf(".");
+            fflush(stdout);
+            sleep(2);
+        }
+    }
+    else{
+        create_ann(xTr_data,yTr_data,10,100,1,1100000);
+
+        double t0 = omp_get_wtime();
+        gradient_descent(10);
+        double t1 = omp_get_wtime();
+
+        printf("\nDone training!\n");
+        printf("Time Taken: %lf\n",t1-t0);
+    }
+    return 0;
 }

@@ -10,7 +10,7 @@
 #define BLOCK_SIZE ((int) 32)
 #endif
 
-#define DEBUG_PRINT 1
+//#define DEBUG_PRINT 1
 
 //Striped Parallel Matrix Multiplication
 
@@ -38,6 +38,7 @@ void basic_dgemm(const int lda_row, const int lda_mid, const int lda_col, const 
     //printf("A_buf\n");
     for( i = 0; i < M; ++i ){
         for( k = 0; k < lda_mid; ++k ) {
+            //printf("%.1f ",A[ lda_mid * i + k ]);
             A_buf[ lda_mid * i + k ] = A[ lda_mid * i + k ];
             //printf("%.1f ",A_buf[ lda_mid * i + k ]);
         }
@@ -163,7 +164,7 @@ matrix_t* mat_mul(matrix_t* matrix_a, matrix_t* matrix_b, int method){
     }
 
     #ifdef DEBUG_PRINT
-    printf("Entered mat mul\n");
+    printf("exiting mat mul\n");
     #endif
 
 	return matrix_c;
