@@ -3,6 +3,7 @@
 #include <math.h>
 #include <stdbool.h>
 #include <omp.h>
+#include <assert.h>
 
 #include "utilities.h"
 
@@ -141,13 +142,11 @@ void dgemm_naive(matrix_t* matrix_a, matrix_t* matrix_b, matrix_t* matrix_c) {
 
 matrix_t* mat_mul(matrix_t* matrix_a, matrix_t* matrix_b, int method){
 
+    assert(matrix_a->second_dim == matrix_b->first_dim);
+
     #ifdef DEBUG_PRINT
     printf("Mat mul called\n");
     #endif
-
-	if(matrix_a->second_dim != matrix_b->first_dim){
-		return NULL;
-	}
 
 	matrix_t* matrix_c = (matrix_t*) malloc(sizeof(matrix_t));
 

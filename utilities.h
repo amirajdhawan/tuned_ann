@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 #define MATRIX_ACCESS(x, y, dim_second)  ((dim_second) * (x) + y)
-#define DOUBLE_ERROR 1.0e-5
+#define DOUBLE_ERROR 1.0e-1
 #define NAIVE 1
 #define OPTIMAL 2
 

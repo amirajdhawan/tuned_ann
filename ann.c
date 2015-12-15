@@ -18,9 +18,28 @@
 #define NUM_THREADS 10
 //#define DEBUG_PRINT 1
 
+#define GD_ITERATIONS 5
+#define TEST_POINTS 4
+#define TRAINING_POINTS 10
+#define TEST_FILE "x_linear_testing.data"
+#define TRAINING_FILE "x_linear_training.data"
+#define NO_FEATURE 2
+#define NO_OUTPUT 1
+#define NO_HIDDEN_NODES 200
+
+//#define TEST_POINTS 1
+//#define TRAINING_POINTS 5
+//#define TEST_FILE "x_square_testing.data"
+//#define TRAINING_FILE "x_square_training.data"
+
 matrix_t* xTr;
 matrix_t* xTr_with_bias;
 matrix_t* yTr;
+
+matrix_t* xTe;
+matrix_t* xTe_with_bias;
+matrix_t* yTe;
+matrix_t* hypo_yte;
 
 matrix_t* W_prime;
 matrix_t* W;
@@ -48,25 +67,33 @@ void back_prop();
 
 void create_ann(double* xTr_data, double* yTr_data, int n_input, int n_hidden, int n_output,int n) {
 
-    xTr = make_mat(n_input,n,xTr_data);
-    yTr = make_mat(n_output,n,yTr_data);
+    xTr = make_mat(n,n_input,xTr_data);
+    yTr = make_mat(n,n_output,yTr_data);
     
+    matrix_t* temp = mat_transpose(xTr);
+    mat_free(xTr);
+    xTr = temp;
+
+    temp = mat_transpose(yTr);
+    mat_free(yTr);
+    yTr = temp;
+
     W_prime = (matrix_t*)malloc(sizeof(matrix_t));
     W_prime->first_dim = n_hidden;
     W_prime->second_dim  = xTr->first_dim + 1;
-    W_prime->mat_data = (double *) calloc(1,W_prime->first_dim * W_prime->second_dim * sizeof(double));
-    for(int i = 0; i < W_prime->first_dim;i++) {
-        W_prime->mat_data[MATRIX_ACCESS(i,W_prime->second_dim - 1,W_prime->second_dim)] = 1;
+    W_prime->mat_data = (double *) calloc(1, W_prime->first_dim * W_prime->second_dim * sizeof(double));
+    for(int i = 0; i < W_prime->first_dim * W_prime->second_dim; i++) {
+        W_prime->mat_data[i] = (double) rand() / RAND_MAX;
     }
-    
+    //print_matrix(W_prime);
     W = (matrix_t*)malloc(sizeof(matrix_t));
     W->first_dim = yTr->first_dim;
     W->second_dim  = n_hidden + 1;
     W->mat_data = (double *) calloc(1,W->first_dim * W->second_dim * sizeof(double));
-    for(int i = 0; i < W->first_dim;i++) {
-        W->mat_data[MATRIX_ACCESS(i,W->second_dim - 1,W_prime->second_dim)] = 1;
+    for(int i = 0; i < W->first_dim * W->second_dim;i++) {
+        W->mat_data[i] = (double) rand() / RAND_MAX;
     }
-    
+
     f = &activation_func_mat;
     g = &activation_func_mat;
     
@@ -104,15 +131,59 @@ void feedforward() {
     mat_free(a);
     a = mat_mul(W,z_prime_with_bias,METHOD);
     //printf("\nPrinting Matrix a\n");
-    //print_matrix(a);
+    //print_matrix(W);
     
     mat_free(z);
     z = g(a);
+    /*printf("\nPrinting Matrix z\n");
+    
+    for(int i = 0; i < 10; i++){
+        printf("i-> %d, yTr-> %.4lf, z-> %.4lf\n", i, yTr->mat_data[i], z->mat_data[i]);
+    }*/
+
+    #ifdef DEBUG_PRINT
+    printf("exiting feedforward\n");
+    #endif
+
+}
+
+void feedforward_for_test_data() {
+
+    #ifdef DEBUG_PRINT
+    printf("Entered feedforward_for_test_data\n");
+    #endif
+
+    mat_free(xTe_with_bias);
+    xTe_with_bias = add_bias(xTe);
+    //printf("Printing Matrix xTr_with_bias\n");
+    //print_matrix(xTr_with_bias);
+    
+    mat_free(a_prime);
+    a_prime = mat_mul(W_prime,xTe_with_bias,METHOD);
+    //printf("\nPrinting Matrix a_prime\n");
+    
+    mat_free(z_prime);
+    z_prime = f(a_prime);
+    //printf("\nPrinting Matrix z_prime\n");
+    //print_matrix(z_prime);
+    
+    mat_free(z_prime_with_bias);
+    z_prime_with_bias = add_bias(z_prime);
+    //printf("\nPrinting Matrix z_prime_with_bias\n");
+    //print_matrix(z_prime_with_bias);
+    
+    mat_free(a);
+    a = mat_mul(W,z_prime_with_bias,METHOD);
+    //printf("\nPrinting Matrix a\n");
+    //print_matrix(W);
+    
+    mat_free(hypo_yte);
+    hypo_yte = g(a);
     //printf("\nPrinting Matrix z\n");
     //print_matrix(z);
 
     #ifdef DEBUG_PRINT
-    printf("exiting feedforward\n");
+    printf("exiting feedforward_for_test_data\n");
     #endif
 
 }
@@ -141,7 +212,7 @@ double compute_loss() {
         double loss_temp = 0;
         #pragma omp parallel for shared(z,yTr) reduction(+ : loss_temp)
         for(int j = 0; j < yTr->second_dim; j++) {
-            loss_temp += pow(z->mat_data[MATRIX_ACCESS(i, j, z->second_dim)]
+            loss_temp = pow(z->mat_data[MATRIX_ACCESS(i, j, z->second_dim)]
                - yTr->mat_data[MATRIX_ACCESS(i, j, yTr->second_dim)],2);
         }
         loss->mat_data[i] = loss_temp;
@@ -163,9 +234,13 @@ void back_prop() {
     #endif
 
     matrix_t* der_g_a = der_g(a);
+    //print_matrix(der_g_a);
     matrix_t* delta = mat_subtract(z,yTr);
+    //print_matrix(delta);
     matrix_t* avg_delta = mat_mul_scalar(delta,1.0/yTr->second_dim);
+    //print_matrix(avg_delta);
     matrix_t* delta_2 = mat_mul_element(avg_delta, der_g_a);
+    //print_matrix(delta_2);
     mat_free(der_g_a);
     mat_free(delta);
     mat_free(avg_delta);
@@ -174,6 +249,7 @@ void back_prop() {
     //print_matrix(delta_2);
     
     matrix_t* z_prime_trans = mat_transpose(z_prime_with_bias);
+    //print_matrix(z_prime_trans);
     matrix_t* delta_W = mat_mul(delta_2,z_prime_trans,METHOD);
     mat_free(z_prime_trans);
     //mat_free(z_prime_with_bias);
@@ -183,15 +259,18 @@ void back_prop() {
     
     matrix_t* W_trans = mat_transpose(W);
     //printf("\nPrinting Matrix W_trans\n");
-    //print_matrix(W_primetrans);
+    //print_matrix(W);
     matrix_t* W_trans_delta_2 = mat_mul(W_trans,delta_2,METHOD);
-    mat_free(delta_2);
+    //print_matrix(delta_2);
+
     //printf("-----after delta 2-------------\n");
     mat_free(W_trans);
     //printf("-----after w_trans-------------\n");
     //printf("\nPrinting Matrix W_trans_delta_2\n");
     //print_matrix(W_trans_delta_2);
     matrix_t* der_f_a_prime = der_f(a_prime);
+    //print_matrix(a_prime);
+    //print_matrix(der_f_a_prime);
     matrix_t* der_f_a_prime_with_bias = add_bias(der_f_a_prime);
     mat_free(der_f_a_prime);
     
@@ -211,6 +290,7 @@ void back_prop() {
     matrix_t* new_W = mat_subtract(W, alpha_delta_W);
     mat_free(W);
     W = new_W;
+    //print_matrix(W);
 
     mat_free(delta_W);
     mat_free(W_trans_delta_2);
@@ -263,7 +343,7 @@ void gradient_descent(int max_iter) {
         double new_loss = compute_loss();
         if(new_loss <= loss) {
             if(new_loss < tolerance) {
-                //printf("\nFinal Loss: %.4lf\n",new_loss);
+                printf("\nFinal Loss: %.4lf\n", new_loss);
                 break;
             }
             loss = new_loss;
@@ -282,16 +362,19 @@ void gradient_descent(int max_iter) {
         //printf("\nLoss after Iteration %d: %.4lf\n",i+1,loss);
         //printf("\nalpha:%lf\n",alpha);
     }
+
+    printf("\nFinal Loss after max iters: %.4lf\n", loss);
+    
     #ifdef DEBUG_PRINT
     printf("exit gd\n");
     #endif
 }
 
 void read_data(double** xTr, double** yTr){
-    *xTr = (double*) malloc(sizeof(double) * 10000000);
-    *yTr = (double*) malloc(sizeof(double) * 1000000);
+    *xTr = (double*) malloc(sizeof(double) * TRAINING_POINTS * NO_FEATURE);
+    *yTr = (double*) malloc(sizeof(double) * TRAINING_POINTS);
 
-    FILE* fp = fopen("poker-hand-training.data", "r");
+    FILE* fp = fopen(TRAINING_FILE, "r");
 
     if(fp == NULL){
         printf("Unable to read the file!");
@@ -313,11 +396,12 @@ void read_data(double** xTr, double** yTr){
         while(token != NULL){
 
             counter++;
-            if(counter < 11){
-                (*xTr)[xTr_pointer++] = atof(token);
+            if(counter <= NO_FEATURE){
+                (*xTr)[xTr_pointer++] = (double)(atof(token) / 100);
             }
-            else
-                (*yTr)[yTr_pointer++] = atof(token);
+            else{
+                (*yTr)[yTr_pointer++] = (double)(atof(token) / 100);
+            }
             
             token = strtok(NULL, ",");
         }
@@ -328,10 +412,10 @@ void read_data(double** xTr, double** yTr){
 }
 
 void read_test_data(double** xTe, double** yTe){
-    *xTr = (double*) malloc(sizeof(double) * 250100);
-    *yTr = (double*) malloc(sizeof(double) * 25010);
+    *xTe = (double*) malloc(sizeof(double) * TEST_POINTS * NO_FEATURE);
+    *yTe = (double*) malloc(sizeof(double) * TEST_POINTS);
 
-    FILE* fp = fopen("poker-hand-testing.data", "r");
+    FILE* fp = fopen(TEST_FILE, "r");
 
     if(fp == NULL){
         printf("Unable to read the file!");
@@ -353,11 +437,11 @@ void read_test_data(double** xTe, double** yTe){
         while(token != NULL){
 
             counter++;
-            if(counter < 11){
-                (*xTe)[xTe_pointer++] = atof(token);
+            if(counter <= NO_FEATURE){
+                (*xTe)[xTe_pointer++] = (double) (atof(token)/100);
             }
             else
-                (*yTe)[yTe_pointer++] = atof(token);
+                (*yTe)[yTe_pointer++] = (double) (atof(token)/100);
             
             token = strtok(NULL, ",");
         }
@@ -365,6 +449,44 @@ void read_test_data(double** xTe, double** yTe){
 
     fclose(fp);
     return;
+}
+
+double calc_accuracy(matrix_t* hypo_yte, matrix_t* yTe){
+    int incorrect = 0;
+    int hypo = 0;
+
+    for(int i = 0; i <= TEST_POINTS; i++){
+        if(i < 10){
+            printf("i-> %d, hypo: %.4lf, yTe: %.1f\n", i, hypo_yte->mat_data[i], yTe->mat_data[i]);
+        }
+        if(!check_double_eq(floor(hypo_yte->mat_data[i] + 0.5), yTe->mat_data[i])){
+            incorrect++;
+        }
+        if(!check_double_eq(hypo_yte->mat_data[i], 0.6212)){
+            hypo++;
+        }
+    }
+
+    printf("\n----Hypo= %d------\n", hypo);
+
+    double acc = ((double)(TEST_POINTS - incorrect) / TEST_POINTS) * 100;
+    return acc;
+}
+
+double calc_accuracy_train(matrix_t* hypo_yte, matrix_t* yTe){
+    int incorrect = 0;
+
+    for(int i = 0; i <= TRAINING_POINTS; i++){
+        if(i < 10){
+            printf("i-> %d, hypo: %.4lf, yTe: %.1f\n", i, hypo_yte->mat_data[i], yTe->mat_data[i]);
+        }
+        if(!check_double_eq(floor(hypo_yte->mat_data[i] + 0.5), yTe->mat_data[i])){
+            incorrect++;
+        }
+    }
+
+    double acc = ((double)(TRAINING_POINTS - incorrect) / TRAINING_POINTS) * 100;
+    return acc;
 }
 
 int main(int argc, char** argv){
@@ -376,6 +498,9 @@ int main(int argc, char** argv){
 
     read_data(&xTr_data, &yTr_data);
     read_test_data(&xTe_data, &yTe_data);
+
+    xTe = make_mat(NO_FEATURE, TEST_POINTS, xTe_data);
+    yTe = make_mat(NO_OUTPUT, TEST_POINTS, yTe_data);
 
     /*for(int i = 0; i < 20; i++){
         printf("xtr %d -> %.1f\t", i, xTr_data[i]);
@@ -394,7 +519,6 @@ int main(int argc, char** argv){
         yTr_data[i] = i;
     }
     */
-
     printf("Training the neural network");
     fflush(stdout);
 
@@ -409,10 +533,12 @@ int main(int argc, char** argv){
         }
     }
     else{
-        create_ann(xTr_data,yTr_data,10,100,1,1025010);
+        create_ann(xTr_data,yTr_data,NO_FEATURE,NO_HIDDEN_NODES,NO_OUTPUT,TRAINING_POINTS);
+        print_matrix(xTr);
+        print_matrix(yTr);
 
         double t0 = omp_get_wtime();
-        gradient_descent(10);
+        gradient_descent(GD_ITERATIONS);
         double t1 = omp_get_wtime();
 
         printf("\nDone training!\n");
@@ -433,7 +559,11 @@ int main(int argc, char** argv){
         }
         else{
             //Run testing
-            
+            feedforward_for_test_data();
+            //feedforward();
+            double accuracy = calc_accuracy(hypo_yte, yTe);
+
+            printf("\n----Accuracy for Test Data: %.2lf\n", accuracy);
         }
     }
     return 0;
