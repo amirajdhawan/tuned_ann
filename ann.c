@@ -11,6 +11,8 @@
 //Debugging level required
 #define DEBUG_LEVEL 1
 #define METHOD OPTIMAL
+#define NUM_THREADS 10
+
 matrix_t* xTr;
 matrix_t* xTr_with_bias;
 matrix_t* yTr;
@@ -181,18 +183,13 @@ void back_prop() {
 }
 
 void gradient_descent(int max_iter) {
-    
-    feedforward();
-    
-    double loss = compute_loss();
-    
-    if(loss < tolerance) {
-        //printf("\nFinal Loss: %.4lf\n",loss);
-        return;
-    }
-    
+        
+
     for(int i = 0; i < max_iter; i++) {
-        back_prop();
+        
+        if(i != 0)
+            back_prop();
+        
         feedforward();
         double new_loss = compute_loss();
         if(new_loss <= loss) {
@@ -216,10 +213,10 @@ void gradient_descent(int max_iter) {
 
 int main(int argc, char** argv){
     
-    double xTr_data[100000];
+    double xTr_data[100];
     double yTr_data[100];
     
-    for(int i = 0; i < 100000; i++) {
+    for(int i = 0; i < 100; i++) {
         xTr_data[i] = i;
     }
     
@@ -227,7 +224,7 @@ int main(int argc, char** argv){
         yTr_data[i] = i;
     }
     
-    create_ann(xTr_data,yTr_data,1000,100,1,100);
+    create_ann(xTr_data,yTr_data,100,100,1,100);
     
     double t0 = omp_get_wtime();
     gradient_descent(300);
