@@ -9,24 +9,25 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <cblas.h>
 
 #include "utilities.h"
 
 //Debugging level required
 #define DEBUG_LEVEL 1
 #define METHOD BLAS
-#define NUM_THREADS 10
+#define NUM_THREADS 8
 //#define DEBUG_PRINT 1
 
-#define GD_ITERATIONS 1000
-#define TEST_POINTS 1000000
-#define TRAINING_POINTS 25010
-#define TEST_FILE "poker-hand-training.data"
-#define TRAINING_FILE "poker-hand-testing.data"
-#define NO_FEATURE 10
+#define GD_ITERATIONS 2000
+#define TEST_POINTS 569
+#define TRAINING_POINTS 569
+#define TEST_FILE "wdbc.data"
+#define TRAINING_FILE "wdbc.data"
+#define NO_FEATURE 30
 #define NO_OUTPUT 1
-#define NO_HIDDEN_NODES 500
-#define NO_CLASSES 10
+#define NO_HIDDEN_NODES 350
+#define NO_CLASSES 2
 
 //#define TEST_POINTS 1
 //#define TRAINING_POINTS 5
@@ -59,6 +60,8 @@ matrix_t* (*der_f)(matrix_t*);
 matrix_t* (*der_g)(matrix_t*);
 double alpha = 0.0001;
 double tolerance = 1.0e-8;
+
+extern void openblas_set_num_threads(int num_threads);
 
 void create_ann(double* xTr_data, double* yTr_data, int n_input, int n_hidden, int n_output,int n);
 void feedforward();
@@ -407,7 +410,14 @@ void read_data(double** xTr, double** yTr){
     int counter = 0;
     char *token;
 
+    int points = 0;
+
     while(fgets(line, sizeof(line), fp)){
+        
+        if(points >= TRAINING_POINTS){
+            break;
+        }
+        points++;
         counter = 0;
         token = NULL;
 
@@ -447,8 +457,14 @@ void read_test_data(double** xTe, double** yTe){
     int yTe_pointer = 0;
     int counter = 0;
     char *token;
+    int points = 0;
 
     while(fgets(line, sizeof(line), fp)){
+        if(points >= TEST_POINTS){
+            break;
+        }
+        points++;
+
         counter = 0;
         token = NULL;
 
@@ -555,6 +571,8 @@ void normalize_inputs(matrix_t* mat){
 
 int main(int argc, char** argv){
 
+    openblas_set_num_threads(NUM_THREADS);
+
     double* xTr_data;
     double* yTr_data;
     double* xTe_data;
@@ -616,13 +634,16 @@ int main(int argc, char** argv){
         }
         else{
 
+            double t3 = omp_get_wtime();
             //Run testing
             feedforward_for_test_data();
             //feedforward();
             normalize_inputs(hypo_yte);
             double accuracy = calc_accuracy(hypo_yte, yTe);
+            double t4 = omp_get_wtime();
 
             printf("\n----Accuracy for Test Data: %.2lf\n", accuracy);
+            printf("\n----Testing Time: %lf\n", t4-t3);
         }
     }
     return 0;
