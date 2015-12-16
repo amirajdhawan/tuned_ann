@@ -5,9 +5,10 @@
 #include <stdbool.h>
 
 #define MATRIX_ACCESS(x, y, dim_second)  ((dim_second) * (x) + y)
-#define DOUBLE_ERROR 1.0e-1
+#define DOUBLE_ERROR 1.0e-2
 #define NAIVE 1
 #define OPTIMAL 2
+#define BLAS 3
 
 struct matrix{
 	double* mat_data;

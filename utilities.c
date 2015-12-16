@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <omp.h>
 #include <assert.h>
+#include <cblas.h>
 
 #include "utilities.h"
 
@@ -158,7 +159,10 @@ matrix_t* mat_mul(matrix_t* matrix_a, matrix_t* matrix_b, int method){
     if(method == OPTIMAL) {
         dgemm(matrix_a->first_dim, matrix_a->second_dim, matrix_b->second_dim,
                  matrix_a->mat_data, matrix_b->mat_data, matrix_c->mat_data);
-    } else {
+    } else if (method == BLAS){
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, matrix_a->first_dim, matrix_b->second_dim, matrix_a->second_dim, 1, matrix_a->mat_data, matrix_a->second_dim, matrix_b->mat_data, matrix_b->second_dim, 0, matrix_c->mat_data, matrix_b->second_dim);
+    }
+    else{
         dgemm_naive(matrix_a,matrix_b,matrix_c);
     }
 

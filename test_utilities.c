@@ -66,7 +66,7 @@ int main(int argc, char** argv){
     matrix_t* matrix_large1 = make_mat(100, 1, mat_large1);
     matrix_t* matrix_large2 = make_mat(1, 100, mat_large2);
     
-    matrix_t* e = mat_mul(matrix_large1, matrix_large2,OPTIMAL);
+    matrix_t* e = mat_mul(matrix_large1, matrix_large2,10);
     matrix_t* f = mat_mul(matrix_large1, matrix_large2,NAIVE);
     if(!check_matrix_same(e,f)){
         error_flag = true;
