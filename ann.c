@@ -19,14 +19,14 @@
 #define NUM_THREADS 8
 //#define DEBUG_PRINT 1
 
-#define GD_ITERATIONS 2000
-#define TEST_POINTS 569
-#define TRAINING_POINTS 569
-#define TEST_FILE "wdbc.data"
-#define TRAINING_FILE "wdbc.data"
-#define NO_FEATURE 30
+#define GD_ITERATIONS 4500
+#define TEST_POINTS 1372
+#define TRAINING_POINTS 1372
+#define TEST_FILE "bank_data.txt"
+#define TRAINING_FILE "bank_data.txt"
+#define NO_FEATURE 4
 #define NO_OUTPUT 1
-#define NO_HIDDEN_NODES 350
+#define NO_HIDDEN_NODES 100
 #define NO_CLASSES 2
 
 //#define TEST_POINTS 1
